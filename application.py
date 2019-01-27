@@ -1,12 +1,26 @@
 from flask import Flask, render_template, request
-from models import Roommate, House, Purchase
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine
+from models import Roommate, Purchase, House
+
 
 application = Flask(__name__)
 
+Evan = Roommate("Evan")
+Tristan = Roommate("Tristan")
+Tim = Roommate("Tim")
+Emmy = Roommate("Emmy")
 
-@application.route("/")
-def main():
-    return render_template("index.html", id=None)
+home = House("R204")
+home.add_member(Evan)
+home.add_member(Tim)
+home.add_member(Tristan)
+home.add_member(Emmy)
+
+@application.route("/", methods=["GET"])
+def overview():
+    max_i = max(len(member.purchases) for member in home.members)
+    return render_template("overview.html", home=home, limit = max_i)
 
 
 @application.route("/add_purchase/", methods=["POST"])  # pass in params by cURL: name, cost, item
@@ -15,21 +29,27 @@ def add_purchase():
     cost = request.args.get("cost")
     item = request.args.get("item")
     # add a purchase to the Roommate with name=name
-    pass
+
+    for member in home.members:
+        if member.name == name:
+            currentRoommate = member
+
+    item = Purchase(item, float(cost))
+    currentRoommate.add_item(item)
+    return item.as_json()
 
 
 @application.route("/settle_debts/", methods=["POST"])
 def settle_debts():
     # reset all balances to 0
-    pass
+    for member in home.members:
+        member.set_to_zero()
+    return home.as_json()
 
 
-@application.route("/get_balance/<name>", methods=["GET"])
-def get_balance(name):
-    # create a page with all debt info for Roommate with name=name
-    # query for Roommate
-    # pass into a render template
-    return name
+@application.route("/get_balance/<identity>", methods=["GET"])
+def get_balance(identity):
+    return render_template("debt.html", home=home, identity=identity)
 
 
 if __name__ == "__main__":
